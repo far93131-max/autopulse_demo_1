@@ -4,6 +4,7 @@ import '../widgets/car_texture_background.dart';
 import 'home_dashboard_screen.dart';
 import 'reminders_screen.dart';
 import 'more_settings_screen.dart';
+import 'marketplace_screen.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -17,6 +18,7 @@ class _MainNavigationState extends State<MainNavigation> {
 
   final List<Widget> _screens = [
     const HomeDashboardScreen(),
+    const MarketplaceScreen(),
     const RemindersScreen(),
     const MoreSettingsScreen(),
   ];
@@ -46,6 +48,10 @@ class _MainNavigationState extends State<MainNavigation> {
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
             label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.store),
+            label: 'Marketplace',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.notifications),

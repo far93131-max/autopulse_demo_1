@@ -21,8 +21,9 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _createDB,
+      onUpgrade: _onUpgrade,
     );
   }
 
@@ -156,8 +157,237 @@ class DatabaseHelper {
       )
     ''');
 
+    // Marketplace Tables
+    await db.execute('''
+      CREATE TABLE products (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT NOT NULL,
+        category TEXT NOT NULL,
+        price REAL NOT NULL,
+        image_url TEXT,
+        stock INTEGER DEFAULT 0,
+        brand TEXT,
+        rating REAL,
+        review_count INTEGER,
+        created_at INTEGER NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE cart_items (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        product_id TEXT NOT NULL,
+        quantity INTEGER NOT NULL DEFAULT 1,
+        created_at INTEGER NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE orders (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        total REAL NOT NULL,
+        status TEXT NOT NULL,
+        payment_method TEXT,
+        shipping_address TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE order_items (
+        id TEXT PRIMARY KEY,
+        order_id TEXT NOT NULL,
+        product_id TEXT NOT NULL,
+        quantity INTEGER NOT NULL,
+        price REAL NOT NULL,
+        created_at INTEGER NOT NULL,
+        FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+        FOREIGN KEY (product_id) REFERENCES products(id)
+      )
+    ''');
+
     // Insert default service types
     await _insertDefaultServiceTypes(db);
+    
+    // Insert sample products
+    await _insertSampleProducts(db);
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // Add marketplace tables
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS products (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          description TEXT NOT NULL,
+          category TEXT NOT NULL,
+          price REAL NOT NULL,
+          image_url TEXT,
+          stock INTEGER DEFAULT 0,
+          brand TEXT,
+          rating REAL,
+          review_count INTEGER,
+          created_at INTEGER NOT NULL
+        )
+      ''');
+
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS cart_items (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          product_id TEXT NOT NULL,
+          quantity INTEGER NOT NULL DEFAULT 1,
+          created_at INTEGER NOT NULL,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+        )
+      ''');
+
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS orders (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          total REAL NOT NULL,
+          status TEXT NOT NULL,
+          payment_method TEXT,
+          shipping_address TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER,
+          FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+      ''');
+
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS order_items (
+          id TEXT PRIMARY KEY,
+          order_id TEXT NOT NULL,
+          product_id TEXT NOT NULL,
+          quantity INTEGER NOT NULL,
+          price REAL NOT NULL,
+          created_at INTEGER NOT NULL,
+          FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+          FOREIGN KEY (product_id) REFERENCES products(id)
+        )
+      ''');
+
+      await _insertSampleProducts(db);
+    }
+  }
+
+  Future<void> _insertSampleProducts(Database db) async {
+    final now = dateToTimestamp(DateTime.now());
+    final sampleProducts = [
+      {
+        'id': _uuid.v4(),
+        'name': 'Premium Motor Oil 5W-30',
+        'description': 'Full synthetic motor oil for optimal engine performance and protection.',
+        'category': 'Engine',
+        'price': 39.99,
+        'brand': 'AutoPro',
+        'rating': 4.5,
+        'review_count': 234,
+        'stock': 50,
+        'created_at': now,
+      },
+      {
+        'id': _uuid.v4(),
+        'name': 'Brake Pad Set - Front',
+        'description': 'High-performance ceramic brake pads for improved stopping power.',
+        'category': 'Brakes',
+        'price': 89.99,
+        'brand': 'StopSafe',
+        'rating': 4.8,
+        'review_count': 156,
+        'stock': 30,
+        'created_at': now,
+      },
+      {
+        'id': _uuid.v4(),
+        'name': 'Car Battery 12V 800CCA',
+        'description': 'Long-lasting car battery with 5-year warranty.',
+        'category': 'Battery',
+        'price': 149.99,
+        'brand': 'PowerMax',
+        'rating': 4.6,
+        'review_count': 89,
+        'stock': 25,
+        'created_at': now,
+      },
+      {
+        'id': _uuid.v4(),
+        'name': 'Air Filter - Premium',
+        'description': 'High-efficiency air filter for cleaner engine air intake.',
+        'category': 'Engine',
+        'price': 24.99,
+        'brand': 'BreathEasy',
+        'rating': 4.4,
+        'review_count': 312,
+        'stock': 75,
+        'created_at': now,
+      },
+      {
+        'id': _uuid.v4(),
+        'name': 'Tire Pressure Gauge',
+        'description': 'Digital tire pressure gauge with backlit display.',
+        'category': 'Tires',
+        'price': 19.99,
+        'brand': 'CheckIT',
+        'rating': 4.7,
+        'review_count': 445,
+        'stock': 100,
+        'created_at': now,
+      },
+      {
+        'id': _uuid.v4(),
+        'name': 'Coolant/Antifreeze 50/50',
+        'description': 'Pre-mixed coolant for year-round protection.',
+        'category': 'Cooling',
+        'price': 34.99,
+        'brand': 'FreezeGuard',
+        'rating': 4.3,
+        'review_count': 178,
+        'stock': 60,
+        'created_at': now,
+      },
+      {
+        'id': _uuid.v4(),
+        'name': 'Spark Plug Set (4-pack)',
+        'description': 'Iridium spark plugs for better fuel economy.',
+        'category': 'Engine',
+        'price': 54.99,
+        'brand': 'Ignite',
+        'rating': 4.9,
+        'review_count': 567,
+        'stock': 40,
+        'created_at': now,
+      },
+      {
+        'id': _uuid.v4(),
+        'name': 'Windshield Wiper Blades (Pair)',
+        'description': 'All-weather windshield wiper blades with easy installation.',
+        'category': 'Accessories',
+        'price': 29.99,
+        'brand': 'ClearView',
+        'rating': 4.5,
+        'review_count': 892,
+        'stock': 80,
+        'created_at': now,
+      },
+    ];
+
+    final batch = db.batch();
+    for (var product in sampleProducts) {
+      batch.insert('products', product);
+    }
+    await batch.commit(noResult: true);
   }
 
   Future<void> _insertDefaultServiceTypes(Database db) async {
