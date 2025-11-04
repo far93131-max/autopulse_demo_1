@@ -4,6 +4,7 @@ import '../models/cart_item.dart';
 import '../services/marketplace_service.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
+import 'payment_screen.dart';
 
 class MarketplaceScreen extends StatefulWidget {
   const MarketplaceScreen({super.key});
@@ -23,12 +24,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> with TickerProvid
   String? _selectedCategory;
   bool _isLoading = true;
   late TabController _tabController;
-  final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _addressController = TextEditingController();
-  final _cardNumberController = TextEditingController();
-  final _expiryController = TextEditingController();
-  final _cvvController = TextEditingController();
 
   @override
   void initState() {
@@ -40,11 +35,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> with TickerProvid
   @override
   void dispose() {
     _tabController.dispose();
-    _nameController.dispose();
-    _addressController.dispose();
-    _cardNumberController.dispose();
-    _expiryController.dispose();
-    _cvvController.dispose();
     super.dispose();
   }
 
@@ -199,241 +189,25 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> with TickerProvid
       return;
     }
 
-    _showCheckoutDialog();
-  }
-
-  void _showCheckoutDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.surfaceColor,
-                 title: Text('Checkout', style: const TextStyle(color: AppTheme.textPrimaryColor)),
-        content: SingleChildScrollView(
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                                 TextFormField(
-                   controller: _nameController,
-                   style: const TextStyle(color: AppTheme.textPrimaryColor),
-                   decoration: InputDecoration(
-                     labelText: 'Name on Card',
-                     labelStyle: const TextStyle(color: AppTheme.textSecondaryColor),
-                     border: OutlineInputBorder(
-                       borderRadius: BorderRadius.circular(12),
-                     ),
-                   ),
-                   validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
-                 ),
-                                 const SizedBox(height: 16),
-                                   TextFormField(
-                    controller: _addressController,
-                    style: const TextStyle(color: AppTheme.textPrimaryColor),
-                    decoration: InputDecoration(
-                      labelText: 'Shipping Address',
-                      labelStyle: const TextStyle(color: AppTheme.textSecondaryColor),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    maxLines: 2,
-                    validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
-                  ),
-                                  const SizedBox(height: 16),
-                 TextFormField(
-                   controller: _cardNumberController,
-                   style: const TextStyle(color: AppTheme.textPrimaryColor),
-                   decoration: InputDecoration(
-                     labelText: 'Card Number',
-                     labelStyle: const TextStyle(color: AppTheme.textSecondaryColor),
-                     border: OutlineInputBorder(
-                       borderRadius: BorderRadius.circular(12),
-                     ),
-                   ),
-                   keyboardType: TextInputType.number,
-                   validator: (value) {
-                     if (value?.isEmpty ?? true) return 'Required';
-                     if (value!.length < 13) return 'Invalid card number';
-                     return null;
-                   },
-                 ),
-                SizedBox(height: 16),
-                Row(
-                  children: [
-                                         Expanded(
-                       child: TextFormField(
-                         controller: _expiryController,
-                         style: const TextStyle(color: AppTheme.textPrimaryColor),
-                         decoration: InputDecoration(
-                           labelText: 'Expiry (MM/YY)',
-                           labelStyle: const TextStyle(color: AppTheme.textSecondaryColor),
-                           border: OutlineInputBorder(
-                             borderRadius: BorderRadius.circular(12),
-                           ),
-                         ),
-                         keyboardType: TextInputType.number,
-                         validator: (value) {
-                           if (value?.isEmpty ?? true) return 'Required';
-                           if (!RegExp(r'^\d{2}/\d{2}$').hasMatch(value!)) {
-                             return 'Format: MM/YY';
-                           }
-                           return null;
-                         },
-                       ),
-                     ),
-                                         const SizedBox(width: 16),
-                     Expanded(
-                       child: TextFormField(
-                         controller: _cvvController,
-                         style: const TextStyle(color: AppTheme.textPrimaryColor),
-                         decoration: InputDecoration(
-                           labelText: 'CVV',
-                           labelStyle: const TextStyle(color: AppTheme.textSecondaryColor),
-                           border: OutlineInputBorder(
-                             borderRadius: BorderRadius.circular(12),
-                           ),
-                         ),
-                         keyboardType: TextInputType.number,
-                         obscureText: true,
-                         validator: (value) {
-                           if (value?.isEmpty ?? true) return 'Required';
-                           if (value!.length < 3) return 'Invalid CVV';
-                           return null;
-                         },
-                       ),
-                     ),
-                  ],
-                ),
-              ],
-            ),
+    final total = _cartItems.fold<double>(0, (sum, item) => sum + item.totalPrice);
+    
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PaymentScreen(
+            cartItems: _cartItems,
+            total: total,
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-                         child: Text('Cancel', style: const TextStyle(color: AppTheme.textSecondaryColor)),
-           ),
-           ElevatedButton(
-             onPressed: _processPayment,
-             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accentColor),
-             child: Text('Pay', style: const TextStyle(color: AppTheme.backgroundColor)),
-           ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _processPayment() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    Navigator.pop(context);
-
-    // Show loading
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-             builder: (context) => Center(
-         child: const CircularProgressIndicator(color: AppTheme.accentColor),
-       ),
-    );
-
-    try {
-      // Simulate payment processing
-      await Future.delayed(const Duration(seconds: 2));
-      
-      // Create order
-      final order = await _marketplaceService.createOrder(
-        _userId!,
-        'Credit Card',
-        _addressController.text,
-      );
-
-      // Close loading
-      if (mounted) Navigator.pop(context);
-
-      _nameController.clear();
-      _addressController.clear();
-      _cardNumberController.clear();
-      _expiryController.clear();
-      _cvvController.clear();
-
-      // Show success dialog
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            backgroundColor: AppTheme.surfaceColor,
-                         title: Row(
-               children: [
-                 const Icon(Icons.check_circle, color: AppTheme.accentColor, size: 32),
-                 const SizedBox(width: 12),
-                 Expanded(
-                   child: Text(
-                     'Order Placed!',
-                     style: const TextStyle(color: AppTheme.textPrimaryColor),
-                   ),
-                 ),
-               ],
-             ),
-             content: Column(
-               mainAxisSize: MainAxisSize.min,
-               crossAxisAlignment: CrossAxisAlignment.start,
-               children: [
-                 Text(
-                   'Your order has been placed successfully.',
-                   style: const TextStyle(color: AppTheme.textSecondaryColor),
-                 ),
-                 const SizedBox(height: 16),
-                                 Text(
-                   'Order ID: ${order.id.substring(0, 8).toUpperCase()}',
-                   style: const TextStyle(
-                     color: AppTheme.accentColor,
-                     fontWeight: FontWeight.bold,
-                   ),
-                 ),
-                 const SizedBox(height: 8),
-                 Text(
-                   'Total: ${order.formattedTotal}',
-                   style: const TextStyle(
-                     color: AppTheme.textPrimaryColor,
-                     fontSize: 18,
-                     fontWeight: FontWeight.bold,
-                   ),
-                 ),
-              ],
-            ),
-            actions: [
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _tabController.animateTo(0);
-                },
-                style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accentColor),
-                child: Text('Continue Shopping'),
-              ),
-            ],
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        Navigator.pop(context);
-               ScaffoldMessenger.of(context).showSnackBar(
-         SnackBar(
-           content: Text('Error: ${e.toString()}'),
-           backgroundColor: AppTheme.errorColor,
-           action: SnackBarAction(
-             label: 'OK',
-             textColor: AppTheme.backgroundColor,
-             onPressed: () {},
-           ),
-         ),
-       );
-      }
+      ).then((_) {
+        // Reload data when returning from payment screen
+        _loadData();
+      });
     }
   }
+
+
 
   @override
   Widget build(BuildContext context) {
