@@ -385,7 +385,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 👥 Authors
 
-- **Your Name** - *Initial work* - [YourGitHub](https://github.com/yourusername)
+- **Abdelrahman Tamer** - [MY_GitHub](https://github.com/AbdelrahmanTamer11)
 
 ---
 
@@ -399,7 +399,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-For support, email support@autopulse.app or open an issue in the repository.
+For support, email ""___"" or open an issue in the repository.
 
 ---
 
