@@ -22,8 +22,6 @@ class _AddServiceStep1ScreenState extends State<AddServiceStep1Screen> {
   final _searchController = TextEditingController();
   
   List<ServiceGroup> _serviceGroups = [];
-  Map<String, bool> _expandedGroups = {}; // Track which groups are expanded
-  Map<String, bool> _expandedServices = {}; // Track which services with sub-items are expanded
   List<ServiceType> _serviceTypesMap = []; // Map from database for navigation
   String? _userId;
   bool _isLoading = true;
@@ -57,10 +55,6 @@ class _AddServiceStep1ScreenState extends State<AddServiceStep1Screen> {
     setState(() {
       _serviceGroups = groups;
       _serviceTypesMap = types;
-      // Expand first group by default
-      if (_serviceGroups.isNotEmpty) {
-        _expandedGroups[_serviceGroups.first.id] = true;
-      }
       _isLoading = false;
     });
   }
@@ -131,6 +125,208 @@ class _AddServiceStep1ScreenState extends State<AddServiceStep1Screen> {
         builder: (_) => AddServiceStep2Screen(serviceType: serviceType),
       ),
     );
+  }
+
+  void _handleServiceTap(ServiceItem service, String groupName, Color groupColor) {
+    // If service has sub-items, show bottom sheet
+    if (service.subItems != null && service.subItems!.isNotEmpty) {
+      _showSubItemsBottomSheet(service, groupName, groupColor);
+    } else {
+      // Select the service directly
+      _selectService(service.name, groupName);
+    }
+  }
+
+  void _showSubItemsBottomSheet(ServiceItem service, String groupName, Color groupColor) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.surfaceColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Header
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: groupColor.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    _getServiceIcon(service.name),
+                    color: groupColor,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        service.name,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimaryColor,
+                        ),
+                      ),
+                      Text(
+                        'Select option',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textSecondaryColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            // Sub-items list
+            ...service.subItems!.map((subItem) => ListTile(
+              leading: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: groupColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  _getServiceIcon(subItem.name),
+                  color: groupColor,
+                  size: 20,
+                ),
+              ),
+              title: Text(
+                subItem.name,
+                style: const TextStyle(
+                  color: AppTheme.textPrimaryColor,
+                ),
+              ),
+              trailing: Icon(
+                Icons.chevron_right,
+                color: groupColor,
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _selectService(subItem.name, groupName);
+              },
+            )),
+            const SizedBox(height: 8),
+            // Option to select parent service
+            ListTile(
+              leading: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: groupColor.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.check_circle,
+                  color: groupColor,
+                  size: 20,
+                ),
+              ),
+              title: const Text(
+                'Select general service',
+                style: TextStyle(
+                  color: AppTheme.textPrimaryColor,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              trailing: Icon(
+                Icons.chevron_right,
+                color: groupColor,
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _selectService(service.name, groupName);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  IconData _getServiceIcon(String serviceName) {
+    final lowerName = serviceName.toLowerCase();
+    
+    // Engine & Oil
+    if (lowerName.contains('oil')) return Icons.oil_barrel;
+    if (lowerName.contains('filter')) return Icons.filter_alt;
+    if (lowerName.contains('spark')) return Icons.electric_bolt;
+    if (lowerName.contains('engine')) return Icons.engineering;
+    
+    // Brakes
+    if (lowerName.contains('brake')) return Icons.stop_circle;
+    if (lowerName.contains('pad')) return Icons.disc_full;
+    
+    // Tires & Wheels
+    if (lowerName.contains('tire') || lowerName.contains('wheel')) return Icons.tire_repair;
+    if (lowerName.contains('alignment')) return Icons.straighten;
+    if (lowerName.contains('balance')) return Icons.balance;
+    
+    // Battery & Electrical
+    if (lowerName.contains('battery')) return Icons.battery_charging_full;
+    if (lowerName.contains('alternator')) return Icons.power;
+    if (lowerName.contains('starter')) return Icons.play_circle;
+    if (lowerName.contains('fuse')) return Icons.electric_meter;
+    
+    // Cooling System
+    if (lowerName.contains('coolant') || lowerName.contains('cooling')) return Icons.water_drop;
+    if (lowerName.contains('radiator')) return Icons.ac_unit;
+    if (lowerName.contains('thermostat')) return Icons.device_thermostat;
+    if (lowerName.contains('water pump')) return Icons.water;
+    
+    // Transmission
+    if (lowerName.contains('transmission')) return Icons.speed;
+    if (lowerName.contains('clutch')) return Icons.settings;
+    
+    // Suspension & Steering
+    if (lowerName.contains('suspension') || lowerName.contains('shock')) return Icons.waves;
+    if (lowerName.contains('steering')) return Icons.settings;
+    
+    // Fuel System
+    if (lowerName.contains('fuel')) return Icons.local_gas_station;
+    if (lowerName.contains('injector')) return Icons.settings;
+    
+    // Exhaust
+    if (lowerName.contains('exhaust') || lowerName.contains('muffler')) return Icons.build;
+    if (lowerName.contains('catalytic')) return Icons.eco;
+    
+    // HVAC
+    if (lowerName.contains('ac') || lowerName.contains('hvac')) return Icons.ac_unit;
+    if (lowerName.contains('cabin filter')) return Icons.air;
+    if (lowerName.contains('heater')) return Icons.heat_pump;
+    
+    // Diagnostics
+    if (lowerName.contains('diagnostic') || lowerName.contains('scan') || lowerName.contains('obd')) return Icons.bug_report;
+    if (lowerName.contains('check engine')) return Icons.warning;
+    
+    // Body & Glass
+    if (lowerName.contains('wiper')) return Icons.water_drop;
+    if (lowerName.contains('light') || lowerName.contains('bulb')) return Icons.lightbulb;
+    if (lowerName.contains('windshield') || lowerName.contains('glass')) return Icons.window;
+    if (lowerName.contains('body')) return Icons.car_repair;
+    
+    // Default
+    return Icons.build_circle;
   }
 
   void _showServiceNotFoundDialog(String serviceName, String? groupName) {
@@ -257,7 +453,7 @@ class _AddServiceStep1ScreenState extends State<AddServiceStep1Screen> {
                     ),
                   ),
                 ),
-                // Service groups list
+                // Service groups with icon grid
                 Expanded(
                   child: _getFilteredGroups().isEmpty
                       ? Center(
@@ -278,22 +474,21 @@ class _AddServiceStep1ScreenState extends State<AddServiceStep1Screen> {
                           ),
                         )
                       : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           itemCount: _getFilteredGroups().length + 1, // +1 for custom service
                           itemBuilder: (context, index) {
                             if (index == _getFilteredGroups().length) {
-                              return _buildCustomServiceCard();
+                              return _buildCustomServiceIcon();
                             }
                             
                             final group = _getFilteredGroups()[index];
-                            final isExpanded = _expandedGroups[group.id] ?? false;
                             final filteredServices = _getFilteredServices(group);
                             
                             if (filteredServices.isEmpty) {
                               return const SizedBox.shrink();
                             }
                             
-                            return _buildGroupCard(group, isExpanded, filteredServices);
+                            return _buildGroupSection(group, filteredServices);
                           },
                         ),
                 ),
@@ -302,214 +497,164 @@ class _AddServiceStep1ScreenState extends State<AddServiceStep1Screen> {
     );
   }
 
-  Widget _buildGroupCard(ServiceGroup group, bool isExpanded, List<ServiceItem> services) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      color: AppTheme.surfaceColor,
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: group.color.withOpacity(0.3),
-          width: 2,
-        ),
-      ),
-      child: Column(
-        children: [
-          // Group header
-          InkWell(
-            onTap: () {
-              setState(() {
-                _expandedGroups[group.id] = !isExpanded;
-              });
-            },
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: group.color.withOpacity(0.1),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+  Widget _buildGroupSection(ServiceGroup group, List<ServiceItem> services) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Group header
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 4,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: group.color,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: group.color,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.build,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          group.name,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.textPrimaryColor,
-                          ),
-                        ),
-                        Text(
-                          '${services.length} service${services.length != 1 ? 's' : ''}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.textSecondaryColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    isExpanded ? Icons.expand_less : Icons.expand_more,
+              const SizedBox(width: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: group.color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  group.name,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
                     color: group.color,
                   ),
-                ],
-              ),
-            ),
-          ),
-          // Services list
-          if (isExpanded)
-            ...services.map((service) => _buildServiceItem(service, group.color, group.name)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildServiceItem(ServiceItem service, Color groupColor, String groupName) {
-    final hasSubItems = service.subItems != null && service.subItems!.isNotEmpty;
-    final isServiceExpanded = _expandedServices[service.id] ?? false;
-    
-    return Column(
-      children: [
-        // Main service item
-        InkWell(
-          onTap: () {
-            if (hasSubItems) {
-              // Toggle expansion for services with sub-items
-              setState(() {
-                _expandedServices[service.id] = !isServiceExpanded;
-              });
-            } else {
-              // Select the service directly
-              _selectService(service.name, groupName);
-            }
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              border: Border(
-                left: BorderSide(
-                  color: groupColor,
-                  width: 3,
                 ),
               ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    service.name,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: AppTheme.textPrimaryColor,
-                    ),
-                  ),
+              const SizedBox(width: 8),
+              Text(
+                '${services.length}',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppTheme.textSecondaryColor,
                 ),
-                if (hasSubItems)
-                  Icon(
-                    isServiceExpanded ? Icons.expand_less : Icons.expand_more,
-                    size: 20,
-                    color: groupColor,
-                  )
-                else
-                  Icon(
-                    Icons.chevron_right,
-                    color: groupColor.withOpacity(0.5),
-                  ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
-        // Sub-items
-        if (hasSubItems && isServiceExpanded)
-          ...service.subItems!.map((subItem) => InkWell(
-                onTap: () => _selectService(subItem.name, groupName),
-                child: Container(
-                  padding: const EdgeInsets.only(left: 32, right: 16, top: 8, bottom: 8),
-                  decoration: BoxDecoration(
-                    border: Border(
-                      left: BorderSide(
-                        color: groupColor.withOpacity(0.5),
-                        width: 2,
-                      ),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.circle,
-                        size: 6,
-                        color: groupColor,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          subItem.name,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppTheme.textSecondaryColor,
-                          ),
-                        ),
-                      ),
-                      Icon(
-                        Icons.chevron_right,
-                        size: 16,
-                        color: groupColor.withOpacity(0.3),
-                      ),
-                    ],
-                  ),
-                ),
-              )),
+        // Services grid
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 0.85,
+          ),
+          itemCount: services.length,
+          itemBuilder: (context, index) {
+            final service = services[index];
+            return _buildServiceIconCard(service, group.color, group.name);
+          },
+        ),
+        const SizedBox(height: 16),
       ],
     );
   }
 
-  Widget _buildCustomServiceCard() {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      color: AppTheme.surfaceColor,
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+  Widget _buildServiceIconCard(ServiceItem service, Color groupColor, String groupName) {
+    final hasSubItems = service.subItems != null && service.subItems!.isNotEmpty;
+    
+    return InkWell(
+      onTap: () => _handleServiceTap(service, groupName, groupColor),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppTheme.surfaceColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: groupColor.withOpacity(0.3),
+            width: 1.5,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: groupColor.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                _getServiceIcon(service.name),
+                color: groupColor,
+                size: 28,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                service.name,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimaryColor,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (hasSubItems)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Icon(
+                  Icons.more_horiz,
+                  size: 16,
+                  color: groupColor.withOpacity(0.7),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCustomServiceIcon() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: InkWell(
         onTap: _createCustomService,
         borderRadius: BorderRadius.circular(12),
         child: Container(
           padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppTheme.accentColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppTheme.accentColor.withOpacity(0.3),
+              width: 1.5,
+            ),
+          ),
           child: Row(
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 50,
+                height: 50,
                 decoration: BoxDecoration(
                   color: AppTheme.accentColor.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   Icons.add_circle_outline,
                   color: AppTheme.accentColor,
-                  size: 24,
+                  size: 28,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               const Expanded(
                 child: Text(
                   'Create Custom Service',
