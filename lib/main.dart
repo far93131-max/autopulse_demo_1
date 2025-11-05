@@ -15,7 +15,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'AutoCare',
+      title: 'REVOVA',
       theme: AppTheme.darkTheme,
       debugShowCheckedModeBanner: false,
       builder: (context, child) {

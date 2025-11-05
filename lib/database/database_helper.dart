@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:uuid/uuid.dart';
+import '../data/car_maintenance_services.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
@@ -213,7 +214,7 @@ class DatabaseHelper {
       )
     ''');
 
-    // Insert default service types
+    // Insert default service types (will be seeded by ServiceGroupService on first access)
     await _insertDefaultServiceTypes(db);
     
     // Insert sample products
@@ -391,23 +392,56 @@ class DatabaseHelper {
   }
 
   Future<void> _insertDefaultServiceTypes(Database db) async {
-    final defaultTypes = [
-      {'id': _uuid.v4(), 'user_id': null, 'name': 'Oil Change', 'category': 'Engine', 'is_custom': 0, 'icon_name': 'oil'},
-      {'id': _uuid.v4(), 'user_id': null, 'name': 'Tire Rotation', 'category': 'Tires', 'is_custom': 0, 'icon_name': 'tire'},
-      {'id': _uuid.v4(), 'user_id': null, 'name': 'Brake Service', 'category': 'Brakes', 'is_custom': 0, 'icon_name': 'brake'},
-      {'id': _uuid.v4(), 'user_id': null, 'name': 'Battery Check', 'category': 'Battery', 'is_custom': 0, 'icon_name': 'battery'},
-      {'id': _uuid.v4(), 'user_id': null, 'name': 'Coolant Flush', 'category': 'Cooling', 'is_custom': 0, 'icon_name': 'coolant'},
-      {'id': _uuid.v4(), 'user_id': null, 'name': 'Transmission Service', 'category': 'Transmission', 'is_custom': 0, 'icon_name': 'transmission'},
-      {'id': _uuid.v4(), 'user_id': null, 'name': 'Suspension Check', 'category': 'Suspension', 'is_custom': 0, 'icon_name': 'suspension'},
-      {'id': _uuid.v4(), 'user_id': null, 'name': 'Fuel Filter', 'category': 'Fuel', 'is_custom': 0, 'icon_name': 'fuel'},
-      {'id': _uuid.v4(), 'user_id': null, 'name': 'Exhaust Check', 'category': 'Exhaust', 'is_custom': 0, 'icon_name': 'exhaust'},
-      {'id': _uuid.v4(), 'user_id': null, 'name': 'Body Repair', 'category': 'Body', 'is_custom': 0, 'icon_name': 'body'},
-    ];
-
+    final groups = CarMaintenanceServices.getServiceGroups();
     final batch = db.batch();
-    for (var type in defaultTypes) {
-      batch.insert('service_types', type);
+
+    // Helper function to get icon name
+    String? getIconName(String serviceName) {
+      final lowerName = serviceName.toLowerCase();
+      if (lowerName.contains('oil')) return 'oil';
+      if (lowerName.contains('brake')) return 'brake';
+      if (lowerName.contains('tire') || lowerName.contains('wheel')) return 'tire';
+      if (lowerName.contains('battery')) return 'battery';
+      if (lowerName.contains('coolant') || lowerName.contains('cooling')) return 'coolant';
+      if (lowerName.contains('transmission')) return 'transmission';
+      if (lowerName.contains('suspension') || lowerName.contains('steering')) return 'suspension';
+      if (lowerName.contains('fuel')) return 'fuel';
+      if (lowerName.contains('exhaust')) return 'exhaust';
+      if (lowerName.contains('ac') || lowerName.contains('hvac')) return 'ac';
+      if (lowerName.contains('diagnostic') || lowerName.contains('scan')) return 'diagnostic';
+      if (lowerName.contains('body') || lowerName.contains('glass')) return 'body';
+      return null;
     }
+
+    // Insert all services from all groups
+    for (var group in groups) {
+      for (var service in group.services) {
+        // Insert main service
+        batch.insert('service_types', {
+          'id': service.id,
+          'user_id': null,
+          'name': service.name,
+          'category': group.name,
+          'is_custom': 0,
+          'icon_name': getIconName(service.name),
+        });
+
+        // Insert sub-items if they exist
+        if (service.subItems != null) {
+          for (var subItem in service.subItems!) {
+            batch.insert('service_types', {
+              'id': subItem.id,
+              'user_id': null,
+              'name': subItem.name,
+              'category': group.name,
+              'is_custom': 0,
+              'icon_name': getIconName(subItem.name),
+            });
+          }
+        }
+      }
+    }
+
     await batch.commit(noResult: true);
   }
 
