@@ -42,8 +42,16 @@ class _AddServiceStep1ScreenState extends State<AddServiceStep1Screen> {
   Future<void> _loadServices() async {
     setState(() => _isLoading = true);
     
-    // Ensure services are seeded
+    // Ensure all services are seeded in the database
     await _serviceGroupService.seedPredefinedServices();
+    
+    // Verify all services are in database (optional check)
+    final missingServices = await _serviceGroupService.verifyServicesInDatabase();
+    if (missingServices.isNotEmpty) {
+      // If any services are missing, re-seed
+      print('Warning: Some services missing from database, re-seeding...');
+      await _serviceGroupService.seedPredefinedServices();
+    }
     
     // Get service groups with colors
     final groups = _serviceGroupService.getServiceGroups();
