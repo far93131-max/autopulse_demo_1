@@ -1,6 +1,16 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
+class MileageUpdateResult {
+  final int mileage;
+  final bool hasWarning;
+
+  const MileageUpdateResult({
+    required this.mileage,
+    required this.hasWarning,
+  });
+}
+
 class UpdateMileageModal extends StatefulWidget {
   final int currentMileage;
 
@@ -76,10 +86,59 @@ class _UpdateMileageModalState extends State<UpdateMileageModal> {
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     final mileage = int.tryParse(_controller.text);
-                    if (mileage != null && mileage >= 0) {
-                      Navigator.pop(context, mileage);
+                    if (mileage == null || mileage < 0) return;
+
+                    final current = widget.currentMileage;
+                    final isDecrease = mileage < current;
+                    final isJump = mileage - current > 20000;
+
+                    if (!isDecrease && !isJump) {
+                      Navigator.pop(
+                        context,
+                        MileageUpdateResult(
+                          mileage: mileage,
+                          hasWarning: false,
+                        ),
+                      );
+                      return;
+                    }
+
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (dialogContext) => AlertDialog(
+                        backgroundColor: AppTheme.surfaceColor,
+                        title: const Text('Confirm Mileage Update'),
+                        content: Text(
+                          isDecrease
+                              ? 'The new mileage ($mileage km) is less than the current reading ($current km).\n\nAre you sure you want to proceed?'
+                              : 'The new mileage ($mileage km) is more than 20,000 km above the current reading ($current km).\n\nPlease confirm this large jump.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(dialogContext, false),
+                            child: const Text('Cancel'),
+                          ),
+                          ElevatedButton(
+                            onPressed: () => Navigator.pop(dialogContext, true),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange,
+                            ),
+                            child: const Text('Proceed'),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (confirmed == true) {
+                      Navigator.pop(
+                        context,
+                        MileageUpdateResult(
+                          mileage: mileage,
+                          hasWarning: true,
+                        ),
+                      );
                     }
                   },
                   child: const Text('Save'),

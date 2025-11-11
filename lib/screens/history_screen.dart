@@ -194,6 +194,62 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ? const Center(child: CircularProgressIndicator(color: AppTheme.accentColor))
           : Column(
               children: [
+                Builder(
+                  builder: (_) {
+                    if (_filteredLogs.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+
+                    final serviceLogs = _filteredLogs.where((log) => !_isMileageUpdateLog(log)).toList();
+                    final totalServiceCost = serviceLogs.fold<double>(0.0, (sum, log) => sum + log.totalCost);
+
+                    return Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: Card(
+                            color: AppTheme.accentColor.withOpacity(0.1),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                children: [
+                                  Column(
+                                    children: [
+                                      Text(
+                                        serviceLogs.length.toString(),
+                                        style: const TextStyle(
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppTheme.accentColor,
+                                        ),
+                                      ),
+                                      const Text('Services', style: TextStyle(color: AppTheme.textSecondaryColor)),
+                                    ],
+                                  ),
+                                  Column(
+                                    children: [
+                                      Text(
+                                        '\$${totalServiceCost.toStringAsFixed(0)}',
+                                        style: const TextStyle(
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppTheme.accentColor,
+                                        ),
+                                      ),
+                                      const Text('Total Cost', style: TextStyle(color: AppTheme.textSecondaryColor)),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                    );
+                  },
+                ),
                 // Car Selector
                 if (_cars.length > 1)
                   Padding(
@@ -281,50 +337,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     ],
                   ),
                 ),
-                // Stats Summary
-                if (_filteredLogs.isNotEmpty) ...[
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Card(
-                      color: AppTheme.accentColor.withOpacity(0.1),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            Column(
-                              children: [
-                                Text(
-                                  _filteredLogs.length.toString(),
-                                  style: const TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppTheme.accentColor,
-                                  ),
-                                ),
-                                const Text('Services', style: TextStyle(color: AppTheme.textSecondaryColor)),
-                              ],
-                            ),
-                            Column(
-                              children: [
-                                Text(
-                                  '\$${_filteredLogs.fold(0.0, (sum, log) => sum + log.totalCost).toStringAsFixed(0)}',
-                                  style: const TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppTheme.accentColor,
-                                  ),
-                                ),
-                                const Text('Total Cost', style: TextStyle(color: AppTheme.textSecondaryColor)),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
                 // Logs List
                 Expanded(
                   child: _filteredLogs.isEmpty
@@ -360,36 +372,60 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Widget _buildLogCard(MaintenanceLog log) {
+    final isMileageUpdate = _isMileageUpdateLog(log);
+    final isMileageWarning = log.serviceTypeId == MaintenanceService.mileageUpdateWarningServiceTypeId;
+    final icon = isMileageUpdate ? Icons.speed : Icons.build;
+    final cardColor = isMileageWarning ? Colors.amber.withOpacity(0.25) : AppTheme.surfaceColor;
+    final borderSide = isMileageWarning
+        ? const BorderSide(color: Colors.amberAccent, width: 1)
+        : BorderSide.none;
+    final leadingBackground = isMileageWarning ? Colors.amber : AppTheme.accentColor.withOpacity(0.2);
+    final leadingIconColor = isMileageUpdate && isMileageWarning ? Colors.black87 : AppTheme.accentColor;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      color: AppTheme.surfaceColor,
+      color: cardColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: borderSide,
+      ),
       child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: borderSide,
+        ),
+        collapsedShape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: borderSide,
+        ),
         leading: CircleAvatar(
-          backgroundColor: AppTheme.accentColor.withOpacity(0.2),
-          child: Icon(Icons.build, color: AppTheme.accentColor),
+          backgroundColor: leadingBackground,
+          child: Icon(icon, color: leadingIconColor),
         ),
         title: Text(
           log.serviceType?.name ?? 'Service',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Text(
-          '${_formatDate(log.dateOfService)} • ${log.mileage.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} km${log.totalCost > 0 ? ' • \$${log.totalCost.toStringAsFixed(2)}' : ''}',
+          '${_formatDate(log.dateOfService)} • ${log.mileage.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} km${(!isMileageUpdate && log.totalCost > 0) ? ' • \$${log.totalCost.toStringAsFixed(2)}' : ''}',
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            IconButton(
-              icon: const Icon(Icons.edit, size: 20),
-              onPressed: () async {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => EditServiceModal(log: log),
-                  ),
-                );
-                if (result == true) await _loadData();
-              },
-            ),
+            if (!isMileageUpdate)
+              IconButton(
+                icon: const Icon(Icons.edit, size: 20),
+                onPressed: () async {
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => EditServiceModal(log: log),
+                    ),
+                  );
+                  if (result == true) await _loadData();
+                },
+              ),
             IconButton(
               icon: const Icon(Icons.delete, size: 20, color: AppTheme.errorColor),
               onPressed: () => _deleteLog(log.id),
@@ -402,11 +438,22 @@ class _HistoryScreenState extends State<HistoryScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (log.mechanicName != null) ...[
+                if (isMileageUpdate) ...[
+                  _buildDetailRow(
+                    'Type',
+                    isMileageWarning ? 'Mileage update (warning acknowledged)' : 'Mileage update',
+                  ),
+                  const SizedBox(height: 8),
+                  if (log.notes != null && log.notes!.isNotEmpty) ...[
+                    _buildDetailRow('Update', log.notes!),
+                    const SizedBox(height: 8),
+                  ],
+                ],
+                if (!isMileageUpdate && log.mechanicName != null) ...[
                   _buildDetailRow('Mechanic', log.mechanicName!),
                   const SizedBox(height: 8),
                 ],
-                if (log.notes != null && log.notes!.isNotEmpty) ...[
+                if (!isMileageUpdate && log.notes != null && log.notes!.isNotEmpty) ...[
                   _buildDetailRow('Notes', log.notes!),
                   const SizedBox(height: 8),
                 ],
@@ -429,6 +476,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ],
       ),
     );
+  }
+
+  bool _isMileageUpdateLog(MaintenanceLog log) {
+    return log.serviceTypeId == MaintenanceService.mileageUpdateServiceTypeId ||
+        log.serviceTypeId == MaintenanceService.mileageUpdateWarningServiceTypeId;
   }
 
   Widget _buildDetailRow(String label, String value) {

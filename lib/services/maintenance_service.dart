@@ -4,6 +4,9 @@ import '../models/service_type.dart';
 import '../database/database_helper.dart';
 
 class MaintenanceService {
+  static const String mileageUpdateServiceTypeId = 'mileage_update';
+  static const String mileageUpdateWarningServiceTypeId = 'mileage_update_warning';
+
   final _dbHelper = DatabaseHelper.instance;
 
   Future<Database> get _db => _dbHelper.database;
@@ -71,6 +74,30 @@ class MaintenanceService {
     }
 
     return logs;
+  }
+
+  Future<void> logMileageUpdate({
+    required String carId,
+    required int mileage,
+    bool hasWarning = false,
+  }) async {
+    final serviceType = await _getMileageServiceType(warning: hasWarning);
+    final now = DateTime.now();
+
+    final log = MaintenanceLog(
+      id: _dbHelper.generateId(),
+      carId: carId,
+      serviceTypeId: serviceType.id,
+      serviceType: serviceType,
+      mileage: mileage,
+      dateOfService: now,
+      notes: hasWarning
+          ? 'Mileage updated to $mileage km (warning acknowledged)'
+          : 'Mileage updated to $mileage km',
+      createdAt: now,
+    );
+
+    await saveLog(log);
   }
 
   Future<void> saveLog(MaintenanceLog log) async {
@@ -215,5 +242,33 @@ class MaintenanceService {
       parts: parts,
       createdAt: DatabaseHelper.instance.timestampToDate(map['created_at'] as int),
     );
+  }
+
+  Future<ServiceType> _getMileageServiceType({required bool warning}) async {
+    final db = await _db;
+    final id = warning ? mileageUpdateWarningServiceTypeId : mileageUpdateServiceTypeId;
+
+    final existing = await db.query(
+      'service_types',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+
+    if (existing.isNotEmpty) {
+      return _mapToServiceType(existing.first);
+    }
+
+    final serviceTypeMap = {
+      'id': id,
+      'user_id': null,
+      'name': warning ? 'Mileage Update (Warning)' : 'Mileage Update',
+      'category': 'Mileage',
+      'is_custom': 0,
+      'icon_name': 'speed',
+    };
+
+    await db.insert('service_types', serviceTypeMap);
+    return _mapToServiceType(serviceTypeMap);
   }
 }

@@ -59,9 +59,9 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
 
     List<MaintenanceLog> logs = [];
     if (selectedCar != null) {
-      logs = await _maintenanceService.getLogs(selectedCar.id);
+      final fetchedLogs = await _maintenanceService.getLogs(selectedCar.id);
       final serviceTypes = await _maintenanceService.getServiceTypes(_userId!);
-      logs = logs.map((log) {
+      logs = fetchedLogs.map((log) {
         final serviceType = serviceTypes.firstWhere(
           (st) => st.id == log.serviceTypeId,
           orElse: () => serviceTypes.isNotEmpty ? serviceTypes.first : ServiceType(id: '', userId: '', name: 'Service'),
@@ -83,10 +83,15 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
       }).toList();
     }
 
+    final serviceLogs = logs.where((log) {
+      return log.serviceTypeId != MaintenanceService.mileageUpdateServiceTypeId &&
+          log.serviceTypeId != MaintenanceService.mileageUpdateWarningServiceTypeId;
+    }).toList();
+
     setState(() {
       _cars = cars;
       _selectedCar = selectedCar;
-      _allLogs = logs;
+      _allLogs = serviceLogs;
       _isLoading = false;
     });
   }
@@ -95,11 +100,38 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     await _loadData();
   }
 
-  Future<void> _updateMileage(int newMileage) async {
-    if (_selectedCar != null) {
-      await _carService.updateCarMileage(_selectedCar!.id, newMileage);
-      await _loadData();
+  Future<void> _updateMileage(MileageUpdateResult result) async {
+    final car = _selectedCar;
+    if (car == null) return;
+
+    final newMileage = result.mileage;
+
+    if (newMileage == car.currentMileage) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Mileage is already up to date')),
+      );
+      return;
     }
+
+    await _carService.updateCarMileage(car.id, newMileage);
+    await _maintenanceService.logMileageUpdate(
+      carId: car.id,
+      mileage: newMileage,
+      hasWarning: result.hasWarning,
+    );
+    await _loadData();
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          result.hasWarning
+              ? 'Mileage updated to $newMileage km (warning acknowledged)'
+              : 'Mileage updated to $newMileage km',
+        ),
+      ),
+    );
   }
 
   ServiceStatus _getServiceStatus(MaintenanceLog log, Car car) {
@@ -631,7 +663,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         const Spacer(),
         ElevatedButton(
           onPressed: () async {
-            final result = await showDialog<int>(
+            final result = await showDialog<MileageUpdateResult>(
               context: context,
               builder: (_) => UpdateMileageModal(
                 currentMileage: _selectedCar!.currentMileage,
