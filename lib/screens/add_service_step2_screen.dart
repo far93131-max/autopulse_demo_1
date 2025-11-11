@@ -133,7 +133,7 @@ class _AddServiceStep2ScreenState extends State<AddServiceStep2Screen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Service Details'),
+        title: Text(widget.serviceType.name),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -157,9 +157,12 @@ class _AddServiceStep2ScreenState extends State<AddServiceStep2Screen> {
               TextFormField(
                 controller: _mileageController,
                 keyboardType: TextInputType.number,
+                readOnly: true,
+                enableInteractiveSelection: false,
                 decoration: const InputDecoration(
-                  labelText: 'Mileage (km) *',
+                  labelText: 'Current Mileage (km)',
                   prefixIcon: Icon(Icons.speed),
+                  suffixIcon: Icon(Icons.lock),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
