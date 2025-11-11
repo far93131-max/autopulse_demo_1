@@ -101,10 +101,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       logs = await _maintenanceService.getLogs(selectedCar.id);
     }
 
+    final serviceLogs = logs.where((log) {
+      return log.serviceTypeId != MaintenanceService.mileageUpdateServiceTypeId &&
+          log.serviceTypeId != MaintenanceService.mileageUpdateWarningServiceTypeId;
+    }).toList();
+
     setState(() {
       _cars = cars;
       _selectedCar = selectedCar;
-      _allLogs = logs;
+      _allLogs = serviceLogs;
       _isLoading = false;
     });
   }
@@ -185,10 +190,21 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           'Active Alerts',
                           AppTheme.errorColor,
                         ),
-                        _buildStatItem(
-                          _allLogs.length.toString(),
-                          'Total Services',
-                          AppTheme.accentColor,
+                        Builder(
+                          builder: (_) {
+                            if (_allLogs.isEmpty) {
+                              return _buildStatItem(
+                                '0',
+                                'Service Alerts',
+                                AppTheme.accentColor,
+                              );
+                            }
+                            return _buildStatItem(
+                              _allLogs.length.toString(),
+                              'Service Alerts',
+                              AppTheme.accentColor,
+                            );
+                          },
                         ),
                       ],
                     ),
